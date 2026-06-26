@@ -504,7 +504,7 @@ function stepFin(){
   inp.focus();
   inp.addEventListener("keydown",ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); doSave(); } });
   const chips=document.getElementById("chips");
-  chips.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{ inp.value=b.getAttribute("data-h"); inp.focus(); });
+  chips.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{ inp.value=b.getAttribute("data-h"); doSave(); });
   document.getElementById("saveBtn").onclick=doSave;
 }
 function doSave(){
