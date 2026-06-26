@@ -1,29 +1,31 @@
-/* простой офлайн-кэш оболочки приложения */
-const CACHE = "budget-v2";
-const ASSETS = [
-  ".",
-  "index.html",
-  "manifest.json",
-  "icons/icon-192.png",
-  "icons/icon-512.png"
-];
+/* офлайн-кэш оболочки + надёжное обновление (обход HTTP-кеша для HTML) */
+const CACHE = "budget-v3";
+const ASSETS = ["index.html", "manifest.json", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: "reload" }))))
+      .catch(() => {})
+  );
 });
 
 self.addEventListener("activate", e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-/* network-first для index (чтобы обновления подтягивались), cache-fallback офлайн */
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+  const isNav = e.request.mode === "navigate" || e.request.destination === "document";
+  // навигацию тянем мимо HTTP-кеша, чтобы свежий index приходил сразу
+  const netReq = isNav ? new Request(e.request.url, { cache: "no-store" }) : e.request;
   e.respondWith(
-    fetch(e.request)
+    fetch(netReq)
       .then(resp => {
         const copy = resp.clone();
         caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
