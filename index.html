@@ -61,11 +61,18 @@
   .piewrap{padding:10px 14px;}
   #pie{max-width:280px;margin:0 auto;}
   .leg{margin-top:12px;}
-  .leg .li{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);}
+  .leg .li{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);cursor:pointer;}
   .leg .dot{width:14px;height:14px;border-radius:4px;flex:0 0 auto;}
   .leg .nm{flex:1 1 auto;font-size:14px;}
   .leg .pc{color:var(--muted);font-size:13px;width:42px;text-align:right;}
-  .leg .sm{font-size:14px;font-weight:700;width:78px;text-align:right;}
+  .leg .sm{font-size:14px;font-weight:700;width:74px;text-align:right;}
+  .leg .chev{color:var(--muted);font-size:12px;width:14px;text-align:right;}
+  .txlist{display:none;padding:2px 0 8px 24px;}
+  .txlist.open{display:block;}
+  .txr{display:flex;gap:10px;padding:5px 2px;font-size:13px;}
+  .txr .d{width:44px;flex:0 0 auto;color:var(--muted);}
+  .txr .n{flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .txr .a{flex:0 0 auto;font-weight:600;}
 
   /* ---- big add button ---- */
   .addbar{position:absolute;left:0;right:0;bottom:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 28%);z-index:5;}
@@ -103,6 +110,9 @@
   .fin label{font-size:12px;color:var(--muted);margin:2px 2px -6px;}
   .fin input{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;color:var(--txt);font-size:18px;padding:14px;outline:none;}
   .fin input[type=date]{color-scheme:dark;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;color:var(--txt);font-size:14px;padding:8px 14px;}
+  .chip:active{background:#2b343e;}
   .save{width:100%;height:62px;border:none;border-radius:16px;background:var(--good);color:#06210f;font-size:21px;font-weight:800;margin-top:auto;}
   .save:active{filter:brightness(.95);}
 
@@ -183,6 +193,14 @@ const CATS = [
   {id:"mar",   name:"Марьяна",              e:"👧", c:"#f4c430"},
 ];
 const CAT = Object.fromEntries(CATS.map(c=>[c.id,c]));
+
+/* подсказки-чипсы под комментарием (по категориям) */
+const HINTS = {
+  food:  ["Билла","Кауфланд","Фантастико","СВА Коме","Другое"],
+  zhku:  ["Аренда","Электричество","Вода","Отопление","Интернет","Моб Максим","Моб Карина"],
+  med:   ["Аптека"],
+  trans: ["Такси","ТО","Страховка","Парковка","Виньетка","Дизель"],
+};
 
 /* ===== хранилище: целые EUR, JSON + автобэкап ===== */
 const KEY="budget_v2", BAK="budget_v2_bak";
@@ -328,12 +346,27 @@ function drawPie(){
     }
     a=a2;
   }
+  const y=cur.getFullYear(), m=cur.getMonth();
   document.getElementById("leg").innerHTML=data.map(d=>{
     const pc=Math.round(d.sum/total*100);
-    return `<div class="li"><span class="dot" style="background:${d.cat.c}"></span>
-      <span class="nm">${d.cat.e} ${d.cat.name}</span>
-      <span class="pc">${pc}%</span><span class="sm">${eur(d.sum)}</span></div>`;
+    const tx=entries.filter(e=>{const p=partsOf(e.date);return p.y===y&&p.m===m&&e.cat===d.cat.id;})
+      .sort((a,b)=> a.date<b.date?1 : a.date>b.date?-1 : b.ts-a.ts);
+    const det=tx.map(e=>{const p=partsOf(e.date);
+      return `<div class="txr"><span class="d">${pad2(p.d)}.${pad2(p.m+1)}</span>
+        <span class="n">${e.note?esc(e.note):"—"}</span><span class="a">${eur(e.amount)}</span></div>`;}).join("");
+    return `<div class="li" data-cat="${d.cat.id}">
+        <span class="dot" style="background:${d.cat.c}"></span>
+        <span class="nm">${d.cat.e} ${d.cat.name}</span>
+        <span class="pc">${pc}%</span><span class="sm">${eur(d.sum)}</span><span class="chev">▸</span>
+      </div>
+      <div class="txlist" data-for="${d.cat.id}">${det}</div>`;
   }).join("");
+  document.getElementById("leg").onclick=ev=>{
+    const li=ev.target.closest(".li"); if(!li) return;
+    const id=li.getAttribute("data-cat");
+    const list=document.querySelector(`.txlist[data-for="${id}"]`);
+    li.querySelector(".chev").textContent=list.classList.toggle("open")?"▾":"▸";
+  };
 }
 
 /* ===== рендер ===== */
@@ -464,11 +497,14 @@ function stepFin(){
       <input id="dateInp" type="date" value="${draft.date}">
       <label>Комментарий</label>
       <input id="noteInp" type="text" inputmode="text" placeholder="Комментарий" value="${esc(draft.note)}">
+      <div class="chips" id="chips">${(HINTS[draft.cat]||[]).map(h=>`<button type="button" class="chip" data-h="${esc(h)}">${esc(h)}</button>`).join("")}</div>
       <button class="save" id="saveBtn">СОХРАНИТЬ ✓</button>
     </div>`;
   const inp=document.getElementById("noteInp");
   inp.focus();
   inp.addEventListener("keydown",ev=>{ if(ev.key==="Enter"){ ev.preventDefault(); doSave(); } });
+  const chips=document.getElementById("chips");
+  chips.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{ inp.value=b.getAttribute("data-h"); inp.focus(); });
   document.getElementById("saveBtn").onclick=doSave;
 }
 function doSave(){
