@@ -259,7 +259,9 @@ function drawChart(){
   const dpr=window.devicePixelRatio||1, cssW=cv.clientWidth, cssH=cv.clientHeight;
   cv.width=cssW*dpr; cv.height=cssH*dpr;
   const ctx=cv.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0);
-  const A=cumulative(cur.getFullYear(),cur.getMonth());
+  let A=cumulative(cur.getFullYear(),cur.getMonth());
+  const now=new Date();                              // обрываем линию текущего месяца на сегодня
+  if(cur.getFullYear()===now.getFullYear()&&cur.getMonth()===now.getMonth()) A=A.slice(0,now.getDate());
   const cm=getCmpYM(), B=cumulative(cm.y,cm.m);
   const maxDays=Math.max(A.length,B.length);
   const maxVal=Math.max(A[A.length-1]||0,B[B.length-1]||0,1);

@@ -1,5 +1,5 @@
 /* офлайн-кэш оболочки + надёжное обновление (обход HTTP-кеша для HTML) */
-const CACHE = "budget-v3";
+const CACHE = "budget-v4";
 const ASSETS = ["index.html", "manifest.json", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", e => {
